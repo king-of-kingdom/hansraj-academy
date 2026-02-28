@@ -179,7 +179,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchCourses = useCallback(async () => {
     try {
       const data = await coursesAPI.getAll();
-      setCourses(data.courses || data || []);
+      const coursesData = data.courses || data || [];
+      // Map MongoDB _id to id for frontend compatibility
+      const mappedCourses = coursesData.map((course: any) => ({
+        ...course,
+        id: course._id || course.id,
+        videos: (course.videos || []).map((video: any) => ({
+          ...video,
+          id: video._id || video.id
+        }))
+      }));
+      setCourses(mappedCourses);
     } catch (error) {
       console.error('Failed to fetch courses:', error);
     }
@@ -285,7 +295,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchPayments = useCallback(async () => {
     try {
       const data = await paymentsAPI.getAllPayments();
-      setPaymentRequests(data.payments || data || []);
+      const paymentsData = data.payments || data || [];
+      // Map MongoDB _id to id and userId to proper format
+      const mappedPayments = paymentsData.map((payment: any) => ({
+        ...payment,
+        id: payment._id || payment.id,
+        userId: payment.userId?._id || payment.userId,
+        userName: payment.userId?.name || payment.userName || 'Unknown',
+        userEmail: payment.userId?.email || payment.userEmail || '',
+        userPhone: payment.userId?.phone || payment.userPhone || '',
+        courseIds: (payment.courseIds || payment.courses || []).map((c: any) => c._id || c.id || c)
+      }));
+      setPaymentRequests(mappedPayments);
     } catch (error) {
       console.error('Failed to fetch payments:', error);
     }
@@ -425,7 +446,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchLiveClasses = useCallback(async () => {
     try {
       const data = await liveClassesAPI.getAll();
-      setLiveClasses(data.liveClasses || data || []);
+      const liveClassesData = data.liveClasses || data || [];
+      // Map MongoDB _id to id
+      const mappedLiveClasses = liveClassesData.map((lc: any) => ({
+        ...lc,
+        id: lc._id || lc.id,
+        courseId: lc.courseId?._id || lc.courseId,
+        meetLink: lc.meetingLink || lc.meetLink
+      }));
+      setLiveClasses(mappedLiveClasses);
     } catch (error) {
       console.error('Failed to fetch live classes:', error);
     }
@@ -463,7 +492,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchDiscussions = useCallback(async (courseId: string) => {
     try {
       const data = await discussionsAPI.getByCourse(courseId);
-      setDiscussions(data.discussions || data || []);
+      const discussionsData = data.discussions || data || [];
+      // Map MongoDB _id to id
+      const mappedDiscussions = discussionsData.map((d: any) => ({
+        ...d,
+        id: d._id || d.id,
+        userId: d.userId?._id || d.userId,
+        userName: d.userId?.name || d.userName || 'Anonymous',
+        replies: (d.replies || []).map((r: any) => ({
+          ...r,
+          id: r._id || r.id,
+          userName: r.userId?.name || r.userName || 'Anonymous'
+        }))
+      }));
+      setDiscussions(mappedDiscussions);
     } catch (error) {
       console.error('Failed to fetch discussions:', error);
     }
@@ -492,7 +534,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchCertificates = useCallback(async () => {
     try {
       const data = await certificatesAPI.getMyCertificates();
-      setCertificates(data.certificates || data || []);
+      const certsData = data.certificates || data || [];
+      // Map MongoDB _id to id
+      const mappedCerts = certsData.map((cert: any) => ({
+        ...cert,
+        id: cert._id || cert.id,
+        courseId: cert.courseId?._id || cert.courseId,
+        courseName: cert.courseId?.title || cert.courseName || 'Course'
+      }));
+      setCertificates(mappedCerts);
     } catch (error) {
       console.error('Failed to fetch certificates:', error);
     }
@@ -512,7 +562,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchUsers = useCallback(async () => {
     try {
       const data = await usersAPI.getAll();
-      setAllUsers(data.users || data || []);
+      const usersData = data.users || data || [];
+      // Map MongoDB _id to id
+      const mappedUsers = usersData.map((user: any) => ({
+        ...user,
+        id: user._id || user.id,
+        enrolledCourses: (user.enrolledCourses || []).map((ec: any) => ({
+          ...ec,
+          courseId: ec.courseId?._id || ec.courseId
+        }))
+      }));
+      setAllUsers(mappedUsers);
     } catch (error) {
       console.error('Failed to fetch users:', error);
     }
