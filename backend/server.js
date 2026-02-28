@@ -1,19 +1,72 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const bcrypt = require('bcryptjs');
 const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
-
 const app = express();
+
+// Create default admin user
+const createDefaultAdmin = async () => {
+  try {
+    const User = require('./models/User');
+    const Settings = require('./models/Settings');
+    
+    // Check if admin exists
+    const adminExists = await User.findOne({ email: 'admin@hansraj.com' });
+    
+    if (!adminExists) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash('admin123', salt);
+      
+      await User.create({
+        name: 'Amit Sir (Admin)',
+        email: 'admin@hansraj.com',
+        phone: '+91 79034 21482',
+        password: hashedPassword,
+        role: 'admin',
+        referralCode: 'ADMIN2024'
+      });
+      
+      console.log('✅ Default admin user created');
+      console.log('   Email: admin@hansraj.com');
+      console.log('   Password: admin123');
+    }
+    
+    // Create default settings if not exists
+    const settingsExists = await Settings.findOne();
+    if (!settingsExists) {
+      await Settings.create({
+        upiId: 'hansrajeducations@upi',
+        upiQrCode: '',
+        phoneNumber: '+91 79034 21482',
+        bundleDiscounts: {
+          1: 10, 2: 20, 3: 30, 4: 40, 5: 50, 6: 60
+        },
+        festivalOffer: {
+          enabled: false,
+          discountPercentage: 20,
+          endDate: new Date()
+        }
+      });
+      console.log('✅ Default settings created');
+    }
+  } catch (error) {
+    console.error('Error creating default admin:', error.message);
+  }
+};
+
+// Connect to MongoDB and create admin
+connectDB().then(() => {
+  createDefaultAdmin();
+});
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: ['http://localhost:5173', 'http://localhost:3000', 'https://hansraj-academy.vercel.app', process.env.FRONTEND_URL].filter(Boolean),
   credentials: true
 }));
 app.use(express.json());

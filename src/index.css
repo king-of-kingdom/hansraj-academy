@@ -664,8 +664,33 @@
 
 /* ========== SELECTION ========== */
 ::selection {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: #6366f1 !important;
+  color: white !important;
+  -webkit-text-fill-color: white !important;
+}
+
+::-moz-selection {
+  background: #6366f1 !important;
+  color: white !important;
+}
+
+/* Fix gradient text selection */
+.text-gradient::selection,
+.text-gradient-animated::selection,
+.text-gradient-gold::selection,
+.text-gradient-rainbow::selection {
+  -webkit-text-fill-color: white !important;
+  background: #6366f1 !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+}
+
+/* Make all text selectable */
+* {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
 }
 
 /* ========== INPUT FOCUS ========== */
