@@ -1573,7 +1573,7 @@ function SettingsTab({
             <label className="block text-sm font-medium text-gray-700 mb-2">End Date</label>
             <input
               type="date"
-              value={localSettings.festivalDiscount.endDate.split('T')[0]}
+              value={(localSettings.festivalDiscount.endDate || '').split('T')[0]}
               onChange={(e) => setLocalSettings({
                 ...localSettings,
                 festivalDiscount: { ...localSettings.festivalDiscount, endDate: new Date(e.target.value).toISOString() }

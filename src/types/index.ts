@@ -76,7 +76,10 @@ export interface LiveClass {
   courseId: string;
   scheduledAt: string;
   meetLink: string;
+  meetingLink?: string;
   description: string;
+  duration?: number;
+  platform?: string;
 }
 
 export interface Discussion {
@@ -122,9 +125,11 @@ export interface SiteSettings {
     enabled: boolean;
     name: string;
     percent: number;
-    endDate: string;
+    endDate?: string;
   };
   qrCodeImage: string;
+  qrCodeUrl?: string;
   upiId: string;
   phoneNumber: string;
+  freeVideosCount?: number;
 }

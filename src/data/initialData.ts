@@ -229,5 +229,6 @@ export const initialSettings: SiteSettings = {
   },
   qrCodeImage: 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=hansrajeducations@upi',
   upiId: 'hansrajeducations@upi',
-  phoneNumber: '+91 79034 21482'
+  phoneNumber: '+91 79034 21482',
+  freeVideosCount: 3
 };

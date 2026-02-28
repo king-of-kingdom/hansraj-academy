@@ -1,20 +1,26 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { Course, User, PaymentRequest, SiteSettings, Quiz, LiveClass, Discussion, Certificate } from '../types';
-import { initialCourses, initialQuizzes, initialSettings } from '../data/initialData';
+import { authAPI, coursesAPI, paymentsAPI, usersAPI, settingsAPI, liveClassesAPI, discussionsAPI, quizAPI, certificatesAPI } from '../services/api';
+import { initialSettings } from '../data/initialData';
 
 interface AppContextType {
   // Auth
   user: User | null;
-  login: (email: string, password: string) => boolean;
-  register: (name: string, email: string, phone: string, password: string, referralCode?: string) => boolean;
+  token: string | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (name: string, email: string, phone: string, password: string, referralCode?: string) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
+  loading: boolean;
   
   // Courses
   courses: Course[];
-  addCourse: (course: Course) => void;
-  updateCourse: (course: Course) => void;
-  deleteCourse: (id: string) => void;
+  fetchCourses: () => Promise<void>;
+  addCourse: (course: Omit<Course, 'id'>) => Promise<void>;
+  updateCourse: (course: Course) => Promise<void>;
+  deleteCourse: (id: string) => Promise<void>;
+  addVideoToCourse: (courseId: string, video: { title: string; youtubeUrl: string; duration?: string; isFree?: boolean }) => Promise<void>;
+  deleteVideoFromCourse: (courseId: string, videoId: string) => Promise<void>;
   
   // Cart
   cart: string[];
@@ -25,175 +31,224 @@ interface AppContextType {
   
   // Payments
   paymentRequests: PaymentRequest[];
-  submitPayment: (transactionId: string) => void;
-  verifyPayment: (requestId: string) => void;
-  rejectPayment: (requestId: string) => void;
+  fetchPayments: () => Promise<void>;
+  submitPayment: (transactionId: string) => Promise<void>;
+  verifyPayment: (requestId: string) => Promise<void>;
+  rejectPayment: (requestId: string) => Promise<void>;
   
   // Settings
   settings: SiteSettings;
-  updateSettings: (settings: SiteSettings) => void;
+  fetchSettings: () => Promise<void>;
+  updateSettings: (settings: SiteSettings) => Promise<void>;
   
   // Quiz
   quizzes: Quiz[];
-  addQuiz: (quiz: Quiz) => void;
-  submitQuizResult: (quizId: string, score: number) => void;
+  fetchQuizzes: (courseId?: string) => Promise<void>;
+  addQuiz: (quiz: Omit<Quiz, 'id'>) => Promise<void>;
+  submitQuizResult: (quizId: string, score: number) => Promise<void>;
   
   // Live Classes
   liveClasses: LiveClass[];
-  addLiveClass: (liveClass: LiveClass) => void;
-  deleteLiveClass: (id: string) => void;
+  fetchLiveClasses: () => Promise<void>;
+  addLiveClass: (liveClass: Omit<LiveClass, 'id'>) => Promise<void>;
+  deleteLiveClass: (id: string) => Promise<void>;
   
   // Discussions
   discussions: Discussion[];
-  addDiscussion: (courseId: string, message: string) => void;
-  addReply: (discussionId: string, message: string) => void;
+  fetchDiscussions: (courseId: string) => Promise<void>;
+  addDiscussion: (courseId: string, message: string) => Promise<void>;
+  addReply: (discussionId: string, message: string) => Promise<void>;
   
   // Certificates
   certificates: Certificate[];
+  fetchCertificates: () => Promise<void>;
   
   // Progress
-  updateProgress: (courseId: string, videoId: string) => void;
+  updateProgress: (courseId: string, videoId: string) => Promise<void>;
   
   // Users (Admin)
   allUsers: User[];
+  fetchUsers: () => Promise<void>;
+  
+  // Refresh all data
+  refreshData: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = localStorage.getItem('currentUser');
-    return saved ? JSON.parse(saved) : null;
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    return localStorage.getItem('token');
   });
-  
-  const [courses, setCourses] = useState<Course[]>(() => {
-    const saved = localStorage.getItem('courses');
-    return saved ? JSON.parse(saved) : initialCourses;
-  });
-  
+  const [loading, setLoading] = useState(true);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [cart, setCart] = useState<string[]>(() => {
     const saved = localStorage.getItem('cart');
     return saved ? JSON.parse(saved) : [];
   });
-  
-  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>(() => {
-    const saved = localStorage.getItem('paymentRequests');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [settings, setSettings] = useState<SiteSettings>(() => {
-    const saved = localStorage.getItem('siteSettings');
-    return saved ? JSON.parse(saved) : initialSettings;
-  });
-  
-  const [quizzes, setQuizzes] = useState<Quiz[]>(() => {
-    const saved = localStorage.getItem('quizzes');
-    return saved ? JSON.parse(saved) : initialQuizzes;
-  });
-  
-  const [liveClasses, setLiveClasses] = useState<LiveClass[]>(() => {
-    const saved = localStorage.getItem('liveClasses');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [discussions, setDiscussions] = useState<Discussion[]>(() => {
-    const saved = localStorage.getItem('discussions');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [certificates, setCertificates] = useState<Certificate[]>(() => {
-    const saved = localStorage.getItem('certificates');
-    return saved ? JSON.parse(saved) : [];
-  });
-  
-  const [allUsers, setAllUsers] = useState<User[]>(() => {
-    const saved = localStorage.getItem('allUsers');
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  // Save to localStorage
-  useEffect(() => {
-    if (user) localStorage.setItem('currentUser', JSON.stringify(user));
-    else localStorage.removeItem('currentUser');
-  }, [user]);
-  
-  useEffect(() => { localStorage.setItem('courses', JSON.stringify(courses)); }, [courses]);
-  useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem('paymentRequests', JSON.stringify(paymentRequests)); }, [paymentRequests]);
-  useEffect(() => { localStorage.setItem('siteSettings', JSON.stringify(settings)); }, [settings]);
-  useEffect(() => { localStorage.setItem('quizzes', JSON.stringify(quizzes)); }, [quizzes]);
-  useEffect(() => { localStorage.setItem('liveClasses', JSON.stringify(liveClasses)); }, [liveClasses]);
-  useEffect(() => { localStorage.setItem('discussions', JSON.stringify(discussions)); }, [discussions]);
-  useEffect(() => { localStorage.setItem('certificates', JSON.stringify(certificates)); }, [certificates]);
-  useEffect(() => { localStorage.setItem('allUsers', JSON.stringify(allUsers)); }, [allUsers]);
+  const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>([]);
+  const [settings, setSettings] = useState<SiteSettings>(initialSettings);
+  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
+  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
 
   const isAdmin = user?.role === 'admin';
 
-  const login = (email: string, password: string): boolean => {
-    // Admin login
-    if (email === 'admin@hansraj.com' && password === 'admin123') {
-      const adminUser: User = {
-        id: 'admin-1',
-        name: 'Amit Sir',
-        email: 'admin@hansraj.com',
-        phone: '+91 79034 21482',
-        role: 'admin',
-        enrolledCourses: [],
-        referralCode: 'ADMIN',
-        createdAt: new Date().toISOString()
-      };
-      setUser(adminUser);
-      return true;
+  // Save cart to localStorage
+  useEffect(() => {
+    localStorage.setItem('cart', JSON.stringify(cart));
+  }, [cart]);
+
+  // Fetch user profile on token change
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (token) {
+        try {
+          const data = await authAPI.getProfile();
+          setUser(data.user || data);
+        } catch (error) {
+          console.error('Failed to fetch profile:', error);
+          localStorage.removeItem('token');
+          setToken(null);
+        }
+      }
+      setLoading(false);
+    };
+    fetchProfile();
+  }, [token]);
+
+  // Fetch initial data
+  useEffect(() => {
+    fetchCourses();
+    fetchSettings();
+    fetchLiveClasses();
+  }, []);
+
+  // Fetch admin data when user is admin
+  useEffect(() => {
+    if (isAdmin) {
+      fetchPayments();
+      fetchUsers();
     }
-    
-    // Student login
-    const savedUsers = localStorage.getItem('allUsers');
-    const users: User[] = savedUsers ? JSON.parse(savedUsers) : [];
-    const foundUser = users.find(u => u.email === email);
-    
-    if (foundUser) {
-      setUser(foundUser);
-      return true;
+  }, [isAdmin]);
+
+  // ============ AUTH ============
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      const data = await authAPI.login({ email, password });
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Login failed:', error);
+      return false;
     }
-    
-    return false;
   };
 
-  const register = (name: string, email: string, phone: string, _password: string, referralCode?: string): boolean => {
-    const newUser: User = {
-      id: `user-${Date.now()}`,
-      name,
-      email,
-      phone,
-      role: 'student',
-      enrolledCourses: [],
-      referralCode: `REF${Date.now().toString(36).toUpperCase()}`,
-      referredBy: referralCode,
-      createdAt: new Date().toISOString()
-    };
-    
-    setAllUsers(prev => [...prev, newUser]);
-    setUser(newUser);
-    return true;
+  const register = async (name: string, email: string, phone: string, password: string, _referralCode?: string): Promise<boolean> => {
+    try {
+      const data = await authAPI.register({ name, email, password, phone });
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        setToken(data.token);
+        setUser(data.user);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Registration failed:', error);
+      return false;
+    }
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
     setUser(null);
     setCart([]);
   };
 
-  const addCourse = (course: Course) => {
-    setCourses(prev => [...prev, course]);
+  // ============ COURSES ============
+  const fetchCourses = useCallback(async () => {
+    try {
+      const data = await coursesAPI.getAll();
+      setCourses(data.courses || data || []);
+    } catch (error) {
+      console.error('Failed to fetch courses:', error);
+    }
+  }, []);
+
+  const addCourse = async (course: Omit<Course, 'id'>) => {
+    try {
+      await coursesAPI.create({
+        title: course.title,
+        description: course.description,
+        category: course.category,
+        price: course.price,
+        thumbnail: course.thumbnail
+      });
+      await fetchCourses();
+    } catch (error) {
+      console.error('Failed to add course:', error);
+      throw error;
+    }
   };
 
-  const updateCourse = (course: Course) => {
-    setCourses(prev => prev.map(c => c.id === course.id ? course : c));
+  const updateCourse = async (course: Course) => {
+    try {
+      await coursesAPI.update(course.id, {
+        title: course.title,
+        description: course.description,
+        category: course.category,
+        price: course.price,
+        thumbnail: course.thumbnail,
+        isActive: true
+      });
+      await fetchCourses();
+    } catch (error) {
+      console.error('Failed to update course:', error);
+      throw error;
+    }
   };
 
-  const deleteCourse = (id: string) => {
-    setCourses(prev => prev.filter(c => c.id !== id));
+  const deleteCourse = async (id: string) => {
+    try {
+      await coursesAPI.delete(id);
+      await fetchCourses();
+    } catch (error) {
+      console.error('Failed to delete course:', error);
+      throw error;
+    }
   };
 
+  const addVideoToCourse = async (courseId: string, video: { title: string; youtubeUrl: string; duration?: string; isFree?: boolean }) => {
+    try {
+      await coursesAPI.addVideo(courseId, video);
+      await fetchCourses();
+    } catch (error) {
+      console.error('Failed to add video:', error);
+      throw error;
+    }
+  };
+
+  const deleteVideoFromCourse = async (courseId: string, videoId: string) => {
+    try {
+      await coursesAPI.deleteVideo(courseId, videoId);
+      await fetchCourses();
+    } catch (error) {
+      console.error('Failed to delete video:', error);
+      throw error;
+    }
+  };
+
+  // ============ CART ============
   const addToCart = (courseId: string) => {
     if (!cart.includes(courseId)) {
       setCart(prev => [...prev, courseId]);
@@ -226,220 +281,268 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { subtotal, discount, total };
   };
 
-  const submitPayment = (transactionId: string) => {
+  // ============ PAYMENTS ============
+  const fetchPayments = useCallback(async () => {
+    try {
+      const data = await paymentsAPI.getAllPayments();
+      setPaymentRequests(data.payments || data || []);
+    } catch (error) {
+      console.error('Failed to fetch payments:', error);
+    }
+  }, []);
+
+  const submitPayment = async (transactionId: string) => {
     if (!user) return;
     
-    const { total, discount } = getCartTotal();
+    const { total } = getCartTotal();
     
-    const request: PaymentRequest = {
-      id: `pay-${Date.now()}`,
-      userId: user.id,
-      userName: user.name,
-      userEmail: user.email,
-      userPhone: user.phone,
-      courseIds: [...cart],
-      totalAmount: total,
-      discountApplied: discount,
-      transactionId,
-      status: 'pending',
-      createdAt: new Date().toISOString()
-    };
-    
-    setPaymentRequests(prev => [...prev, request]);
-    
-    // Add courses to enrolled (but locked)
-    const newEnrollments: User['enrolledCourses'] = cart.map(courseId => ({
-      courseId,
-      enrolledAt: new Date().toISOString(),
-      isUnlocked: false,
-      progress: 0,
-      completedVideos: [],
-      paymentStatus: 'pending' as const,
-      transactionId
-    }));
-    
-    setUser(prev => prev ? {
-      ...prev,
-      enrolledCourses: [...prev.enrolledCourses, ...newEnrollments]
-    } : null);
-    
-    setAllUsers(prev => prev.map(u => u.id === user.id ? {
-      ...u,
-      enrolledCourses: [...u.enrolledCourses, ...newEnrollments]
-    } : u));
-    
-    clearCart();
-  };
-
-  const verifyPayment = (requestId: string) => {
-    const request = paymentRequests.find(r => r.id === requestId);
-    if (!request) return;
-    
-    setPaymentRequests(prev => prev.map(r => 
-      r.id === requestId ? { ...r, status: 'verified' } : r
-    ));
-    
-    // Unlock courses for user
-    setAllUsers(prev => prev.map(u => {
-      if (u.id === request.userId) {
-        return {
-          ...u,
-          enrolledCourses: u.enrolledCourses.map(e => 
-            request.courseIds.includes(e.courseId) 
-              ? { ...e, isUnlocked: true, paymentStatus: 'verified' as const }
-              : e
-          )
-        };
-      }
-      return u;
-    }));
-    
-    // Update current user if same
-    if (user?.id === request.userId) {
-      setUser(prev => prev ? {
-        ...prev,
-        enrolledCourses: prev.enrolledCourses.map(e => 
-          request.courseIds.includes(e.courseId)
-            ? { ...e, isUnlocked: true, paymentStatus: 'verified' as const }
-            : e
-        )
-      } : null);
+    try {
+      await paymentsAPI.create({
+        courseIds: cart,
+        amount: total,
+        transactionId
+      });
+      clearCart();
+      await fetchPayments();
+    } catch (error) {
+      console.error('Failed to submit payment:', error);
+      throw error;
     }
   };
 
-  const rejectPayment = (requestId: string) => {
-    setPaymentRequests(prev => prev.map(r => 
-      r.id === requestId ? { ...r, status: 'rejected' } : r
-    ));
+  const verifyPayment = async (requestId: string) => {
+    try {
+      await paymentsAPI.verifyPayment(requestId);
+      await fetchPayments();
+      await fetchUsers();
+    } catch (error) {
+      console.error('Failed to verify payment:', error);
+      throw error;
+    }
   };
 
-  const updateSettings = (newSettings: SiteSettings) => {
-    setSettings(newSettings);
+  const rejectPayment = async (requestId: string) => {
+    try {
+      await paymentsAPI.rejectPayment(requestId, 'Payment rejected by admin');
+      await fetchPayments();
+    } catch (error) {
+      console.error('Failed to reject payment:', error);
+      throw error;
+    }
   };
 
-  const addQuiz = (quiz: Quiz) => {
-    setQuizzes(prev => [...prev, quiz]);
+  // ============ SETTINGS ============
+  const fetchSettings = useCallback(async () => {
+    try {
+      const data = await settingsAPI.get();
+      if (data) {
+        setSettings({
+          upiId: data.upiId || initialSettings.upiId,
+          qrCodeImage: data.qrCodeUrl || data.qrCodeImage || initialSettings.qrCodeImage,
+          qrCodeUrl: data.qrCodeUrl || initialSettings.qrCodeImage,
+          phoneNumber: data.phoneNumber || initialSettings.phoneNumber,
+          bundleDiscounts: data.bundleDiscounts || initialSettings.bundleDiscounts,
+          festivalDiscount: data.festivalDiscount ? {
+            enabled: data.festivalDiscount.enabled,
+            name: data.festivalDiscount.name || '',
+            percent: data.festivalDiscount.percentage || data.festivalDiscount.percent || 0,
+            endDate: data.festivalDiscount.endDate || ''
+          } : initialSettings.festivalDiscount,
+          freeVideosCount: data.freeVideosCount || initialSettings.freeVideosCount
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch settings:', error);
+    }
+  }, []);
+
+  const updateSettingsHandler = async (newSettings: SiteSettings) => {
+    try {
+      await settingsAPI.update({
+        upiId: newSettings.upiId,
+        qrCodeUrl: newSettings.qrCodeImage,
+        phoneNumber: newSettings.phoneNumber,
+        bundleDiscounts: newSettings.bundleDiscounts.map(b => ({ courses: b.courseCount, discount: b.discountPercent })),
+        festivalDiscount: { 
+          enabled: newSettings.festivalDiscount.enabled, 
+          percentage: newSettings.festivalDiscount.percent,
+          name: newSettings.festivalDiscount.name 
+        },
+        freeVideosCount: newSettings.freeVideosCount
+      });
+      await fetchSettings();
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+      throw error;
+    }
   };
 
-  const submitQuizResult = (quizId: string, score: number) => {
+  // ============ QUIZZES ============
+  const fetchQuizzes = useCallback(async (courseId?: string) => {
+    try {
+      if (courseId) {
+        const data = await quizAPI.getForCourse(courseId);
+        setQuizzes(data.quizzes || data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch quizzes:', error);
+    }
+  }, []);
+
+  const addQuiz = async (quiz: Omit<Quiz, 'id'>) => {
+    try {
+      await quizAPI.create({
+        courseId: quiz.courseId,
+        title: quiz.title,
+        questions: quiz.questions.map(q => ({
+          question: q.question,
+          options: q.options,
+          correctAnswer: q.correctAnswer
+        })),
+        passingScore: quiz.passingScore,
+        timeLimit: quiz.timeLimit
+      });
+      await fetchQuizzes(quiz.courseId);
+    } catch (error) {
+      console.error('Failed to add quiz:', error);
+      throw error;
+    }
+  };
+
+  const submitQuizResult = async (quizId: string, score: number) => {
     if (!user) return;
     
     const quiz = quizzes.find(q => q.id === quizId);
     if (!quiz) return;
     
     if (score >= quiz.passingScore) {
-      const cert: Certificate = {
-        id: `cert-${Date.now()}`,
-        courseId: quiz.courseId,
-        userId: user.id,
-        issuedAt: new Date().toISOString(),
-        score
-      };
-      setCertificates(prev => [...prev, cert]);
+      // Certificate will be generated by backend
+      console.log('Quiz passed with score:', score);
     }
   };
 
-  const addLiveClass = (liveClass: LiveClass) => {
-    setLiveClasses(prev => [...prev, liveClass]);
+  // ============ LIVE CLASSES ============
+  const fetchLiveClasses = useCallback(async () => {
+    try {
+      const data = await liveClassesAPI.getAll();
+      setLiveClasses(data.liveClasses || data || []);
+    } catch (error) {
+      console.error('Failed to fetch live classes:', error);
+    }
+  }, []);
+
+  const addLiveClass = async (liveClass: Omit<LiveClass, 'id'>) => {
+    try {
+      await liveClassesAPI.create({
+        title: liveClass.title,
+        description: liveClass.description,
+        courseId: liveClass.courseId,
+        scheduledAt: liveClass.scheduledAt,
+        duration: liveClass.duration || 60,
+        meetingLink: liveClass.meetLink || liveClass.meetingLink || '',
+        platform: liveClass.platform || 'Google Meet'
+      });
+      await fetchLiveClasses();
+    } catch (error) {
+      console.error('Failed to add live class:', error);
+      throw error;
+    }
   };
 
-  const deleteLiveClass = (id: string) => {
-    setLiveClasses(prev => prev.filter(l => l.id !== id));
+  const deleteLiveClass = async (id: string) => {
+    try {
+      await liveClassesAPI.delete(id);
+      await fetchLiveClasses();
+    } catch (error) {
+      console.error('Failed to delete live class:', error);
+      throw error;
+    }
   };
 
-  const addDiscussion = (courseId: string, message: string) => {
-    if (!user) return;
-    
-    const newDiscussion: Discussion = {
-      id: `disc-${Date.now()}`,
-      courseId,
-      userId: user.id,
-      userName: user.name,
-      message,
-      createdAt: new Date().toISOString(),
-      replies: []
-    };
-    
-    setDiscussions(prev => [...prev, newDiscussion]);
+  // ============ DISCUSSIONS ============
+  const fetchDiscussions = useCallback(async (courseId: string) => {
+    try {
+      const data = await discussionsAPI.getByCourse(courseId);
+      setDiscussions(data.discussions || data || []);
+    } catch (error) {
+      console.error('Failed to fetch discussions:', error);
+    }
+  }, []);
+
+  const addDiscussion = async (courseId: string, message: string) => {
+    try {
+      await discussionsAPI.create({ courseId, title: 'Discussion', content: message });
+      await fetchDiscussions(courseId);
+    } catch (error) {
+      console.error('Failed to add discussion:', error);
+      throw error;
+    }
   };
 
-  const addReply = (discussionId: string, message: string) => {
-    if (!user) return;
-    
-    setDiscussions(prev => prev.map(d => {
-      if (d.id === discussionId) {
-        return {
-          ...d,
-          replies: [...d.replies, {
-            id: `reply-${Date.now()}`,
-            userId: user.id,
-            userName: user.name,
-            message,
-            createdAt: new Date().toISOString()
-          }]
-        };
-      }
-      return d;
-    }));
+  const addReply = async (discussionId: string, message: string) => {
+    try {
+      await discussionsAPI.addReply(discussionId, message);
+    } catch (error) {
+      console.error('Failed to add reply:', error);
+      throw error;
+    }
   };
 
-  const updateProgress = (courseId: string, videoId: string) => {
-    if (!user) return;
-    
-    const course = courses.find(c => c.id === courseId);
-    if (!course) return;
-    
-    setUser(prev => {
-      if (!prev) return null;
-      
-      return {
-        ...prev,
-        enrolledCourses: prev.enrolledCourses.map(e => {
-          if (e.courseId === courseId) {
-            const completedVideos = e.completedVideos.includes(videoId)
-              ? e.completedVideos
-              : [...e.completedVideos, videoId];
-            const progress = Math.round((completedVideos.length / course.videos.length) * 100);
-            return { ...e, completedVideos, progress };
-          }
-          return e;
-        })
-      };
-    });
-    
-    setAllUsers(prev => prev.map(u => {
-      if (u.id === user.id) {
-        return {
-          ...u,
-          enrolledCourses: u.enrolledCourses.map(e => {
-            if (e.courseId === courseId) {
-              const completedVideos = e.completedVideos.includes(videoId)
-                ? e.completedVideos
-                : [...e.completedVideos, videoId];
-              const progress = Math.round((completedVideos.length / course.videos.length) * 100);
-              return { ...e, completedVideos, progress };
-            }
-            return e;
-          })
-        };
-      }
-      return u;
-    }));
+  // ============ CERTIFICATES ============
+  const fetchCertificates = useCallback(async () => {
+    try {
+      const data = await certificatesAPI.getMyCertificates();
+      setCertificates(data.certificates || data || []);
+    } catch (error) {
+      console.error('Failed to fetch certificates:', error);
+    }
+  }, []);
+
+  // ============ PROGRESS ============
+  const updateProgress = async (courseId: string, videoId: string) => {
+    try {
+      await coursesAPI.markVideoComplete(courseId, videoId);
+    } catch (error) {
+      console.error('Failed to update progress:', error);
+      throw error;
+    }
+  };
+
+  // ============ USERS ============
+  const fetchUsers = useCallback(async () => {
+    try {
+      const data = await usersAPI.getAll();
+      setAllUsers(data.users || data || []);
+    } catch (error) {
+      console.error('Failed to fetch users:', error);
+    }
+  }, []);
+
+  // ============ REFRESH ALL DATA ============
+  const refreshData = async () => {
+    await Promise.all([
+      fetchCourses(),
+      fetchSettings(),
+      fetchLiveClasses(),
+      isAdmin ? fetchPayments() : Promise.resolve(),
+      isAdmin ? fetchUsers() : Promise.resolve()
+    ]);
   };
 
   return (
     <AppContext.Provider value={{
-      user, login, register, logout, isAdmin,
-      courses, addCourse, updateCourse, deleteCourse,
+      user, token, login, register, logout, isAdmin, loading,
+      courses, fetchCourses, addCourse, updateCourse, deleteCourse, addVideoToCourse, deleteVideoFromCourse,
       cart, addToCart, removeFromCart, clearCart, getCartTotal,
-      paymentRequests, submitPayment, verifyPayment, rejectPayment,
-      settings, updateSettings,
-      quizzes, addQuiz, submitQuizResult,
-      liveClasses, addLiveClass, deleteLiveClass,
-      discussions, addDiscussion, addReply,
-      certificates,
+      paymentRequests, fetchPayments, submitPayment, verifyPayment, rejectPayment,
+      settings, fetchSettings, updateSettings: updateSettingsHandler,
+      quizzes, fetchQuizzes, addQuiz, submitQuizResult,
+      liveClasses, fetchLiveClasses, addLiveClass, deleteLiveClass,
+      discussions, fetchDiscussions, addDiscussion, addReply,
+      certificates, fetchCertificates,
       updateProgress,
-      allUsers
+      allUsers, fetchUsers,
+      refreshData
     }}>
       {children}
     </AppContext.Provider>

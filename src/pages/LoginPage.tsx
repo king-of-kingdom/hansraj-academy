@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, BookOpen } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, BookOpen, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import toast from 'react-hot-toast';
 
@@ -8,23 +8,31 @@ export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    const success = login(email, password);
-    
-    if (success) {
-      toast.success('Login successful!');
-      if (email === 'admin@hansraj.com') {
-        navigate('/admin');
+    try {
+      const success = await login(email, password);
+      
+      if (success) {
+        toast.success('Login successful!');
+        if (email === 'admin@hansraj.com') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
-        navigate('/dashboard');
+        toast.error('Invalid email or password');
       }
-    } else {
-      toast.error('Invalid email or password');
+    } catch (error) {
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -52,6 +60,7 @@ export function LoginPage() {
                   placeholder="Enter your email"
                   className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -67,6 +76,7 @@ export function LoginPage() {
                   placeholder="Enter your password"
                   className="w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -80,9 +90,17 @@ export function LoginPage() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Login
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                'Login'
+              )}
             </button>
           </form>
 

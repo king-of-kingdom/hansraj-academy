@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, Lock, Eye, EyeOff, User, Phone, Gift, BookOpen } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, User, Phone, Gift, BookOpen, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import toast from 'react-hot-toast';
 
@@ -11,19 +11,27 @@ export function RegisterPage() {
   const [password, setPassword] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const { register } = useApp();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
     
-    const success = register(name, email, phone, password, referralCode || undefined);
-    
-    if (success) {
-      toast.success('Registration successful! Welcome to Hansraj Academy.');
-      navigate('/dashboard');
-    } else {
+    try {
+      const success = await register(name, email, phone, password, referralCode || undefined);
+      
+      if (success) {
+        toast.success('Registration successful! Welcome to Hansraj Academy.');
+        navigate('/dashboard');
+      } else {
+        toast.error('Registration failed. Please try again.');
+      }
+    } catch (error) {
       toast.error('Registration failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -55,6 +63,7 @@ export function RegisterPage() {
                   placeholder="Enter your full name"
                   className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -70,6 +79,7 @@ export function RegisterPage() {
                   placeholder="Enter your email"
                   className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -85,6 +95,7 @@ export function RegisterPage() {
                   placeholder="Enter your phone number"
                   className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -100,6 +111,7 @@ export function RegisterPage() {
                   placeholder="Create a password"
                   className="w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   required
+                  disabled={isLoading}
                 />
                 <button
                   type="button"
@@ -121,15 +133,24 @@ export function RegisterPage() {
                   onChange={(e) => setReferralCode(e.target.value)}
                   placeholder="Enter referral code if you have"
                   className="w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={isLoading}
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition"
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-indigo-700 hover:to-purple-700 transition flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              Register Now
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Registering...
+                </>
+              ) : (
+                'Register Now'
+              )}
             </button>
           </form>
 
