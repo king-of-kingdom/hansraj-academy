@@ -6,11 +6,14 @@ import {
   GraduationCap, Laptop, Medal
 } from 'lucide-react';
 import { CourseCard } from '../components/CourseCard';
-import { useData } from '../context/DataContext';
+import { useApp } from '../context/AppContext';
+import { fallbackCourses } from '../data/fallbackCourses';
 
 export function HomePage() {
-  const { courses, settings } = useData();
-  const featuredCourses = courses.slice(0, 6);
+  const { courses, settings } = useApp();
+  // Use fallback if no courses
+  const displayCourses = courses.length > 0 ? courses : fallbackCourses;
+  const featuredCourses = displayCourses.slice(0, 6);
 
   const stats = [
     { icon: Users, value: '10,000+', label: 'Happy Students', color: 'from-blue-500 to-cyan-500' },

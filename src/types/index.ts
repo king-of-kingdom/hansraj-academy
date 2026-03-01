@@ -12,7 +12,9 @@ export interface Course {
   duration: string;
   videos: Video[];
   isPublished: boolean;
-  createdAt: string;
+  enrollmentCount?: number;
+  rating?: number;
+  createdAt?: string;
 }
 
 export interface Video {

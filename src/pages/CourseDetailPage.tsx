@@ -1,19 +1,50 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Play, Clock, PlayCircle, Lock, CheckCircle, ShoppingCart, Star, Users, Award, MessageCircle } from 'lucide-react';
+import { Play, Clock, PlayCircle, Lock, CheckCircle, ShoppingCart, Star, Users, Award, MessageCircle, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { fallbackCourses } from '../data/fallbackCourses';
 import toast from 'react-hot-toast';
+import { useState, useEffect } from 'react';
+import { Course } from '../types';
 
 export function CourseDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { courses, user, cart, addToCart, discussions, addDiscussion } = useApp();
+  const { courses, user, cart, addToCart, discussions, addDiscussion, loading } = useApp();
+  const [course, setCourse] = useState<Course | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const course = courses.find(c => c.id === id);
+  useEffect(() => {
+    // Try to find course from context
+    let foundCourse = courses.find(c => c.id === id || c.id === id?.toString());
+    
+    // If not found, try fallback courses
+    if (!foundCourse) {
+      foundCourse = fallbackCourses.find(c => c.id === id || c.id === id?.toString());
+    }
+    
+    if (foundCourse) {
+      setCourse(foundCourse);
+    }
+    
+    setIsLoading(false);
+  }, [id, courses]);
+
+  if (isLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
 
   if (!course) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Course not found</p>
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
+        <p className="text-gray-500 text-xl">Course not found</p>
+        <p className="text-gray-400">Course ID: {id}</p>
+        <Link to="/courses" className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700">
+          Browse All Courses
+        </Link>
       </div>
     );
   }

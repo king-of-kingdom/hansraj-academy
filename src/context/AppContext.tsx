@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode, useCallback 
 import { Course, User, PaymentRequest, SiteSettings, Quiz, LiveClass, Discussion, Certificate } from '../types';
 import { authAPI, coursesAPI, paymentsAPI, usersAPI, settingsAPI, liveClassesAPI, discussionsAPI, quizAPI, certificatesAPI } from '../services/api';
 import { initialSettings } from '../data/initialData';
+import { fallbackCourses } from '../data/fallbackCourses';
 
 interface AppContextType {
   // Auth
@@ -189,9 +190,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           id: video._id || video.id
         }))
       }));
-      setCourses(mappedCourses);
+      
+      // Use fallback if no courses from API
+      if (mappedCourses.length > 0) {
+        setCourses(mappedCourses);
+      } else {
+        console.log('Using fallback courses');
+        setCourses(fallbackCourses);
+      }
     } catch (error) {
-      console.error('Failed to fetch courses:', error);
+      console.error('Failed to fetch courses, using fallback:', error);
+      setCourses(fallbackCourses);
     }
   }, []);
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, ShoppingBag, CheckCircle, Copy, Phone } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { fallbackCourses } from '../data/fallbackCourses';
 import toast from 'react-hot-toast';
 
 export function CartPage() {
@@ -10,7 +11,9 @@ export function CartPage() {
   const [transactionId, setTransactionId] = useState('');
   const navigate = useNavigate();
 
-  const cartCourses = courses.filter(c => cart.includes(c.id));
+  // Use fallback if needed
+  const allCourses = courses.length > 0 ? courses : fallbackCourses;
+  const cartCourses = allCourses.filter(c => cart.includes(c.id));
   const { subtotal, discount, total } = getCartTotal();
 
   const handleProceedToPayment = () => {

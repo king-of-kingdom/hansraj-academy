@@ -1,24 +1,51 @@
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, CheckCircle, Play, Lock, List, MessageCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle, Play, Lock, List, MessageCircle, Loader2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { useState } from 'react';
+import { fallbackCourses } from '../data/fallbackCourses';
+import { useState, useEffect } from 'react';
+import { Course, Video } from '../types';
 
 export function VideoPlayerPage() {
   const { courseId, videoId } = useParams();
-  const { courses, user, updateProgress, discussions, addDiscussion } = useApp();
+  const { courses, user, updateProgress, discussions, addDiscussion, loading } = useApp();
   const [showSidebar, setShowSidebar] = useState(true);
   const [newMessage, setNewMessage] = useState('');
+  const [course, setCourse] = useState<Course | null>(null);
+  const [video, setVideo] = useState<Video | null>(null);
 
-  const course = courses.find(c => c.id === courseId);
-  const video = course?.videos.find(v => v.id === videoId);
+  useEffect(() => {
+    // Find course from context or fallback
+    const allCourses = courses.length > 0 ? courses : fallbackCourses;
+    const foundCourse = allCourses.find(c => c.id === courseId);
+    
+    if (foundCourse) {
+      setCourse(foundCourse);
+      const foundVideo = foundCourse.videos.find(v => v.id === videoId);
+      if (foundVideo) {
+        setVideo(foundVideo);
+      }
+    }
+  }, [courseId, videoId, courses]);
+
   const enrollment = user?.enrolledCourses.find(e => e.courseId === courseId);
   const isUnlocked = enrollment?.isUnlocked || false;
   const canWatch = video?.isFree || isUnlocked;
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
+      </div>
+    );
+  }
+
   if (!course || !video) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-gray-500">Video not found</p>
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 flex-col gap-4">
+        <p className="text-gray-400 text-xl">Video not found</p>
+        <Link to="/courses" className="text-indigo-400 hover:underline">
+          Browse All Courses
+        </Link>
       </div>
     );
   }

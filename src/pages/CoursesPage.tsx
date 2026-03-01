@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Search, Filter, Sparkles, BookOpen, TrendingUp, Grid, List } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { useData } from '../context/DataContext';
 import { CourseCard } from '../components/CourseCard';
+import { fallbackCourses } from '../data/fallbackCourses';
 
 export function CoursesPage() {
-  const { courses: localCourses } = useApp();
-  const { courses: apiCourses, isBackendConnected } = useData();
+  const { courses: appCourses } = useApp();
   
-  const courses = isBackendConnected ? apiCourses : localCourses;
+  // Use fallback if no courses
+  const courses = appCourses.length > 0 ? appCourses : fallbackCourses;
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
