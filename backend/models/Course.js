@@ -56,7 +56,7 @@ const courseSchema = new mongoose.Schema({
   },
   language: {
     type: String,
-    default: 'Hindi'
+    default: 'English'
   },
   level: {
     type: String,
@@ -98,7 +98,17 @@ courseSchema.virtual('freeVideoCount').get(function() {
   return this.videos.filter(v => v.isFree).length;
 });
 
-// Index for search
-courseSchema.index({ title: 'text', description: 'text', category: 'text' });
+// Index for search (without language specification to avoid errors)
+courseSchema.index({ title: 1, category: 1 });
+
+// Transform _id to id
+courseSchema.set('toJSON', {
+  virtuals: true,
+  transform: function(doc, ret) {
+    ret.id = ret._id.toString();
+    delete ret.__v;
+    return ret;
+  }
+});
 
 module.exports = mongoose.model('Course', courseSchema);

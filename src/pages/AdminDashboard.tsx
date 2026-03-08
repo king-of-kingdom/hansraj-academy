@@ -517,66 +517,10 @@ export function AdminDashboard() {
 
           {/* Students Tab */}
           {activeTab === 'students' && (
-            <div>
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-                  <h2 className="text-lg font-bold text-gray-900">All Students ({allUsers.length})</h2>
-                  <button className="flex items-center text-indigo-600 hover:text-indigo-700 font-medium">
-                    <Download className="w-4 h-4 mr-2" /> Export CSV
-                  </button>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 border-b border-gray-100">
-                      <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Student</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Contact</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Courses</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Joined</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {allUsers.map(student => (
-                        <tr key={student.id} className="hover:bg-gray-50 transition">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full flex items-center justify-center">
-                                <span className="text-white font-semibold">{student.name.charAt(0)}</span>
-                              </div>
-                              <div>
-                                <p className="font-medium text-gray-900">{student.name}</p>
-                                <p className="text-sm text-gray-500">{student.email}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">{student.phone}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center space-x-2">
-                              <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
-                                {student.enrolledCourses.length} enrolled
-                              </span>
-                              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
-                                {student.enrolledCourses.filter(e => e.isUnlocked).length} active
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {new Date(student.createdAt).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4">
-                            <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition">
-                              <Eye className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <StudentsTab 
+              students={allUsers} 
+              courses={courses}
+            />
           )}
 
           {/* Live Classes Tab */}
@@ -1590,6 +1534,178 @@ function SettingsTab({
       >
         Save All Settings
       </button>
+    </div>
+  );
+}
+
+// Students Tab with Unlock Course Button
+function StudentsTab({ 
+  students, 
+  courses 
+}: { 
+  students: { id: string; name: string; email: string; phone: string; enrolledCourses: { courseId: string; isUnlocked: boolean }[]; createdAt: string }[];
+  courses: Course[];
+}) {
+  const [selectedStudent, setSelectedStudent] = useState<typeof students[0] | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+
+  const handleUnlockCourse = async () => {
+    if (!selectedStudent || !selectedCourse) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`https://hansraj-academy-api.onrender.com/api/users/${selectedStudent.id}/unlock-course`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ courseId: selectedCourse })
+      });
+      
+      if (response.ok) {
+        toast.success(`Course unlocked for ${selectedStudent.name}!`);
+        setShowUnlockModal(false);
+        setSelectedStudent(null);
+        setSelectedCourse('');
+        // Refresh page to get updated data
+        window.location.reload();
+      } else {
+        toast.error('Failed to unlock course');
+      }
+    } catch (error) {
+      console.error('Unlock error:', error);
+      toast.error('Failed to unlock course');
+    }
+  };
+
+  return (
+    <div>
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-900">All Students ({students.length})</h2>
+          <button className="flex items-center text-indigo-600 hover:text-indigo-700 font-medium">
+            <Download className="w-4 h-4 mr-2" /> Export CSV
+          </button>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Student</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Contact</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Courses</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Joined</th>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {students.map(student => (
+                <tr key={student.id} className="hover:bg-gray-50 transition">
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full flex items-center justify-center">
+                        <span className="text-white font-semibold">{student.name.charAt(0)}</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{student.name}</p>
+                        <p className="text-sm text-gray-500">{student.email}</p>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{student.phone}</td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-sm font-medium">
+                        {student.enrolledCourses.length} enrolled
+                      </span>
+                      <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                        {student.enrolledCourses.filter(e => e.isUnlocked).length} active
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {new Date(student.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => { setSelectedStudent(student); setShowUnlockModal(true); }}
+                        className="flex items-center bg-gradient-to-r from-green-500 to-emerald-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:shadow-lg transition"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-1" /> Unlock Course
+                      </button>
+                      <button className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Unlock Course Modal */}
+      {showUnlockModal && selectedStudent && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900">Unlock Course</h3>
+              <button
+                onClick={() => { setShowUnlockModal(false); setSelectedStudent(null); }}
+                className="p-2 hover:bg-gray-100 rounded-lg"
+              >
+                <XCircle className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            <div className="mb-6">
+              <div className="flex items-center space-x-3 bg-gray-50 p-4 rounded-xl mb-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">{selectedStudent.name.charAt(0)}</span>
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900">{selectedStudent.name}</p>
+                  <p className="text-sm text-gray-500">{selectedStudent.email}</p>
+                  <p className="text-sm text-gray-400">{selectedStudent.phone}</p>
+                </div>
+              </div>
+
+              <label className="block text-sm font-medium text-gray-700 mb-2">Select Course to Unlock</label>
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="">-- Select Course --</option>
+                {courses.map(course => (
+                  <option key={course.id} value={course.id}>{course.title} - ₹{course.price}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowUnlockModal(false); setSelectedStudent(null); }}
+                className="flex-1 px-4 py-3 text-gray-600 hover:text-gray-900 font-medium border border-gray-200 rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUnlockCourse}
+                disabled={!selectedCourse}
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-3 rounded-xl font-semibold hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition"
+              >
+                Unlock Course
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

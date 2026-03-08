@@ -133,7 +133,8 @@ router.get('/all', protect, adminOnly, async (req, res) => {
     }
 
     const payments = await Payment.find(query)
-      .populate('courseIds', 'title')
+      .populate('userId', 'name email phone')
+      .populate('courseIds', 'title thumbnail price')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(parseInt(limit));
@@ -151,15 +152,34 @@ router.get('/all', protect, adminOnly, async (req, res) => {
       ]).then(result => result[0]?.total || 0)
     };
 
+    // Format payments with user details
+    const formattedPayments = payments.map(p => ({
+      id: p._id,
+      _id: p._id,
+      userId: p.userId?._id || p.userId,
+      userName: p.userId?.name || p.userName || 'Unknown User',
+      userEmail: p.userId?.email || p.userEmail || '',
+      userPhone: p.userId?.phone || p.userPhone || '',
+      courseIds: p.courseIds,
+      courses: p.courseIds,
+      totalAmount: p.totalAmount,
+      discountApplied: p.discountApplied || 0,
+      transactionId: p.transactionId,
+      status: p.status,
+      createdAt: p.createdAt,
+      verifiedAt: p.verifiedAt
+    }));
+
     res.json({
       success: true,
-      payments,
+      payments: formattedPayments,
       stats,
       total,
       totalPages: Math.ceil(total / limit),
       currentPage: parseInt(page)
     });
   } catch (error) {
+    console.error('Fetch payments error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch payments',

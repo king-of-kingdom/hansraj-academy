@@ -230,8 +230,10 @@ router.get('/all-data', protect, adminOnly, async (req, res) => {
     // Get all courses
     const courses = await Course.find().sort({ createdAt: -1 });
 
-    // Get all payments
+    // Get all payments with user details populated
     const payments = await Payment.find()
+      .populate('userId', 'name email phone')
+      .populate('courseIds', 'title')
       .sort({ createdAt: -1 });
 
     // Get all certificates
