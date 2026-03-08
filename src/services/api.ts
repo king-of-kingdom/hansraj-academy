@@ -3,16 +3,14 @@
 // API Base URL - Change this when deploying
 // For development: http://localhost:5000/api
 // For production: Set VITE_API_URL environment variable to your backend URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://hansraj-academy-api.onrender.com/api';
+
+// Debug: Log API URL
+console.log('🔗 API URL:', API_BASE_URL);
 
 // Get token from localStorage
 const getToken = (): string | null => {
-  const user = localStorage.getItem('user');
-  if (user) {
-    const parsed = JSON.parse(user);
-    return parsed.token || null;
-  }
-  return null;
+  return localStorage.getItem('token');
 };
 
 // API Headers
