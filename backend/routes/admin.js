@@ -217,4 +217,58 @@ router.post('/send-notification', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/all-data
+// @desc    Get all data for admin panel
+// @access  Admin
+router.get('/all-data', protect, adminOnly, async (req, res) => {
+  try {
+    // Get all students
+    const students = await User.find({ role: 'student' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    // Get all courses
+    const courses = await Course.find().sort({ createdAt: -1 });
+
+    // Get all payments
+    const payments = await Payment.find()
+      .sort({ createdAt: -1 });
+
+    // Get all certificates
+    const certificates = await Certificate.find()
+      .sort({ createdAt: -1 });
+
+    // Basic stats
+    const totalUsers = students.length;
+    const totalCourses = courses.length;
+    const pendingPayments = payments.filter(p => p.status === 'pending').length;
+    const verifiedPayments = payments.filter(p => p.status === 'verified');
+    const totalRevenue = verifiedPayments.reduce((sum, p) => sum + (p.totalAmount || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        students,
+        courses,
+        payments,
+        certificates,
+        stats: {
+          totalUsers,
+          totalCourses,
+          pendingPayments,
+          totalRevenue,
+          totalCertificates: certificates.length
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Admin all-data error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch admin data',
+      error: error.message
+    });
+  }
+});
+
 module.exports = router;
