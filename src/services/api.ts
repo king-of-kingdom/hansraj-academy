@@ -179,7 +179,7 @@ export const paymentsAPI = {
     amount: number;
     transactionId: string;
   }) => {
-    return apiCall('/payments', {
+    return apiCall('/payments/submit', {
       method: 'POST',
       body: JSON.stringify(paymentData),
     });
@@ -192,7 +192,7 @@ export const paymentsAPI = {
   // Admin
   getAllPayments: async (status?: string) => {
     const queryString = status ? `?status=${status}` : '';
-    return apiCall(`/payments${queryString}`);
+    return apiCall(`/payments/all${queryString}`);
   },
   
   verifyPayment: async (paymentId: string) => {

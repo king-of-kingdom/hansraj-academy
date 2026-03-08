@@ -78,7 +78,10 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem('token');
   });
@@ -142,6 +145,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const data = await authAPI.login({ email, password });
       if (data.token) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
         return true;
@@ -158,6 +162,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const data = await authAPI.register({ name, email, password, phone });
       if (data.token) {
         localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
         setToken(data.token);
         setUser(data.user);
         return true;
@@ -171,6 +176,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setToken(null);
     setUser(null);
     setCart([]);
